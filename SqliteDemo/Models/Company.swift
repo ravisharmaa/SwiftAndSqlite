@@ -8,6 +8,10 @@
 import Foundation
 import SQLite
 
+protocol Retrievable {
+    
+    static func field <T: Any> (fieldName: String, typeOf: T.Type) -> Expression<T>
+}
 
 struct Company:  Codable, Hashable {
     
@@ -22,13 +26,14 @@ struct Company:  Codable, Hashable {
 }
 
 
-extension Company {
-    
-    static func field <T: Any> (name: String, typeOf: T.Type) -> Expression <T> {
-        return Expression<T>(name)
+extension Company: Retrievable {
+        
+    static func field<T>(fieldName: String, typeOf: T.Type) -> Expression<T> {
+        return Expression<T>(fieldName)
     }
     
-    static func all() -> [Company?] {
+    
+    static func all() -> [Company]? {
       
         do {
             let companies = try DatabaseManager.shared.connection.prepare(Migrations.getTableObject(name: "companies"))
@@ -36,9 +41,9 @@ extension Company {
             var companyModel: [Company] = [Company]()
             
             for company in companies {
-                companyModel.append(self.init(name:company[field(name: "name", typeOf: String.self)],
-                                              photoURL: company[field(name: "photo_url", typeOf: String.self)],
-                                              founded: company[field(name: "founded", typeOf: String.self)]))
+                companyModel.append(self.init(name:company[field(fieldName: "name", typeOf: String.self)],
+                                              photoURL: company[field(fieldName: "photo_url", typeOf: String.self)],
+                                              founded: company[field(fieldName: "founded", typeOf: String.self)]))
             }
             
             return companyModel
