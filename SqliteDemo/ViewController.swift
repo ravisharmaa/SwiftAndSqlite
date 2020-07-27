@@ -10,13 +10,13 @@ import SQLite
 
 class ViewController: UICollectionViewController {
     
-    var companies: [Company] = [Company]()
+    var companies: [CompanyModel] = [CompanyModel]()
     
     enum Section {
         case main
     }
     
-    var dataSource: UICollectionViewDiffableDataSource<Section, Company>!
+    var dataSource: UICollectionViewDiffableDataSource<Section, CompanyModel>!
     
     init() {
         let config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
@@ -36,7 +36,13 @@ class ViewController: UICollectionViewController {
         
         view.backgroundColor = .systemBackground
         
-        guard let companies = Company.all() else { return }
+        navigationController?.navigationBar.barTintColor = .systemRed
+        
+        navigationItem.title = "Companies"
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "plus.square")?.withRenderingMode(.alwaysTemplate), style: .plain, target: self, action: #selector(handleAdd))
+        
+        guard let companies = CompanyModel.all() else { return }
         
         self.companies = companies
         
@@ -62,7 +68,9 @@ class ViewController: UICollectionViewController {
                 switch response {
                 case .success(let companies):
                     
-                    self.companies = companies
+                    self.companies = companies.map({ (company) -> CompanyModel in
+                        return company.convertToCompanyModel()
+                    })
                     
                     DispatchQueue.main.async { [weak self] in
                         self?.configureDataSource()
@@ -74,10 +82,18 @@ class ViewController: UICollectionViewController {
                     do {
                         let statement = try db.prepare("INSERT INTO companies (name, photo_url, founded) VALUES (?, ?, ?)")
                         
-                        for company in companies {
-                            try statement.run(company.name, company.photoURL, company.founded)
-                        }
+                        let employeeStatement = try db.prepare("INSERT INTO employees(name, company_id, birthday,type) VALUES (?, ?, ?, ?)")
                         
+                        for company in companies {
+                            
+                            try statement.run(company.name, company.photoURL, company.founded)
+                            
+                            if let employees = company.employees {
+                                for employee in employees {
+                                    try employeeStatement.run(employee.name, 1, employee.birthday, employee.type)
+                                }
+                            }
+                        }
                         
                     } catch let error  {
                         print(error, "Cannot insert values")
@@ -97,22 +113,22 @@ class ViewController: UICollectionViewController {
     
     func configureDataSource() {
         
-        let cellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, Company>.init { (cell, indexPath, company) in
+        let cellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, CompanyModel>.init { (cell, indexPath, company) in
             var content = cell.defaultContentConfiguration()
             content.text = company.name
             
             cell.contentConfiguration = content
         }
         
-        dataSource = .init(collectionView: collectionView, cellProvider: { (collectionView, indexPath, company) -> UICollectionViewCell? in
-            let cell = collectionView.dequeueConfiguredReusableCell(using: cellRegistration, for: indexPath, item: company)
+        dataSource = .init(collectionView: collectionView, cellProvider: { (collectionView, indexPath, model) -> UICollectionViewCell? in
+            let cell = collectionView.dequeueConfiguredReusableCell(using: cellRegistration, for: indexPath, item: model)
             
             return cell
         })
     }
     
     func configureSnapshot() {
-        var snapshot = NSDiffableDataSourceSnapshot<Section, Company>()
+        var snapshot = NSDiffableDataSourceSnapshot<Section, CompanyModel>()
         
         snapshot.appendSections([.main])
         
@@ -121,5 +137,9 @@ class ViewController: UICollectionViewController {
         dataSource.apply(snapshot, animatingDifferences: true)
     }
     
+    
+    @objc func handleAdd() {
+        
+    }
 }
 

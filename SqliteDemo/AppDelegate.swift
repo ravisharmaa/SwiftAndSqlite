@@ -19,6 +19,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
         Migrations.run()
         
+        UINavigationBar.appearance().titleTextAttributes = [NSAttributedString.Key.foregroundColor: UIColor.white]
+        UINavigationBar.appearance().isTranslucent = false
+        
         return true
     }
 

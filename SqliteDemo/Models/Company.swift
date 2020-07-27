@@ -8,42 +8,68 @@
 import Foundation
 import SQLite
 
-protocol Retrievable {
-    
-    static func field <T: Any> (fieldName: String, typeOf: T.Type) -> Expression<T>
-}
-
 struct Company:  Codable, Hashable {
     
     let name: String?
     let photoURL: String?
     let founded: String?
+    let employees: [Employee]?
     
     enum CodingKeys: String, CodingKey {
         case name, founded
         case photoURL = "photoUrl"
+        case employees
+    }
+}
+
+struct Employee: Codable, Hashable {
+    let name: String?
+    let birthday: String?
+    let type: String?
+}
+
+
+extension Company {
+    
+    func convertToCompanyModel() -> CompanyModel {
+        return .init(name: self.name, photoURL: self.photoURL, founded: self.founded)
     }
 }
 
 
-extension Company: Retrievable {
-        
-    static func field<T>(fieldName: String, typeOf: T.Type) -> Expression<T> {
+protocol Database {
+    
+    static func field <T: Any> (_ fieldName: String, typeOf: T.Type) -> Expression<T>
+}
+
+
+struct CompanyModel: Database, Hashable {
+    
+    let name: String?
+    let photoURL: String?
+    let founded: String?
+    let uuid: UUID = UUID()
+    
+    
+    static func field<T>(_ fieldName: String, typeOf: T.Type) -> Expression<T> {
         return Expression<T>(fieldName)
     }
     
-    
-    static func all() -> [Company]? {
-      
+    static func all() -> [CompanyModel]? {
+        
+        let db = DatabaseManager.shared.connection
+        
         do {
-            let companies = try DatabaseManager.shared.connection.prepare(Migrations.getTableObject(name: "companies"))
             
-            var companyModel: [Company] = [Company]()
+            let companyQuery = try db.prepare(Migrations.getTableObject(name: "companies"))
             
-            for company in companies {
-                companyModel.append(self.init(name:company[field(fieldName: "name", typeOf: String.self)],
-                                              photoURL: company[field(fieldName: "photo_url", typeOf: String.self)],
-                                              founded: company[field(fieldName: "founded", typeOf: String.self)]))
+            var companyModel: [CompanyModel] = [CompanyModel]()
+            
+            for result in companyQuery {
+               
+                companyModel.append(self.init(name: result[field("name", typeOf: String.self)],
+                                              photoURL: result[field("photo_url", typeOf: String.self)],
+                                              founded: result[field("founded", typeOf: String.self)]))
             }
             
             return companyModel
@@ -53,5 +79,7 @@ extension Company: Retrievable {
         }
         
         return []
+
+        
     }
 }
